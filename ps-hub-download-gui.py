@@ -26,6 +26,36 @@ def infos2list(jsonInfo):
     return downlist
 
 
+# 获得版本中的大版本数字
+def getFirstNum(strnum):
+    res = ""
+    for i in strnum:
+        if i.isdigit():
+            res += i
+        else:
+            break
+    return res
+
+
+# 挑选适合计算机的版本
+def all2suit(jsonInfo):
+    suit_list = []
+    global sys_name
+    global sys_bit
+    sys_version = platform.version()
+    sys_version = getFirstNum(sys_version)
+
+    for key, value in jsonInfo.items():
+        if sys_bit in value['requirements'] and sys_name+sys_version in value['requirements']:
+            if 'recommend' in value['requirements']:
+                suit_list.insert(0, key+'【推荐】')
+            else:
+                suit_list.append(key)
+    return suit_list
+
+
+
+# ----------------main------------------
 root = Tk()
 root.title('PS/PhotoShop一键安装程序')
 width = 500
@@ -78,6 +108,33 @@ if sys_soft_list == None:
 else:
     text_startup.set('已成功获取您电脑可以运行的版本，请选择')
     label_startup.grid(row=0)
+    listbox['value'] = all2suit(sys_soft_list)
+    listbox.set(all2suit(sys_soft_list)[0])
     listbox.grid(row=1, column=0)
+
+
+# 设置下载界面
+down_frame = Frame(root)
+down_frame.pack()
+btn_down = ttk.Button(down_frame, text='下载')
+btn_pause = ttk.Button(down_frame, text='暂停')
+label_down = ttk.Label(down_frame, text='下载进度')
+bar_down = ttk.Progressbar(down_frame, length=100)
+var_down = StringVar(down_frame)
+var_down.set('0 KB/s')
+label_speed = ttk.Label(down_frame, textvariable=var_down)
+
+btn_down.grid(row=0, column=0)
+btn_pause.grid(row=0, column=1)
+label_down.grid(row=1, column=0)
+bar_down.grid(row=1, column=1)
+label_speed.grid(row=1, column=2)
+
+
+# 设置安装界面
+install_frame = Frame(root)
+install_frame.pack()
+btn_install = ttk.Button(install_frame, text='安装')
+btn_install.grid(row=0)
 
 root.mainloop()
