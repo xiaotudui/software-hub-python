@@ -1,9 +1,9 @@
 import platform
 import subprocess
-
 import psutil
 import requests
 import json
+import time
 
 
 def parseDownloadLink(SHARE_URL, REQUEST_URL, user_agent, cookie, host):
@@ -20,10 +20,14 @@ def parseDownloadLink(SHARE_URL, REQUEST_URL, user_agent, cookie, host):
 
 def getURLInfo(API_URL: str):
     data = requests.get(API_URL)
-    if data.status_code == 200:
-        jsonObject = json.loads(data.content)
-        return jsonObject
-    print("API 请求失败")
+    for i in range(10):
+        if data.status_code == 200:
+            jsonObject = json.loads(data.content)
+            return jsonObject
+        else:
+            print('网络异常，正在重试 [{}/10]'.format(i+1))
+            time.sleep(5)
+    print("网络异常，请稍后重试或联系客服")
 
 
 def getSysInfo():
@@ -43,7 +47,11 @@ def byte2MB(byte):
 
 def canDownList(jsonInfo, sysinfo):
     downlist = []
-    bits = sysinfo['sysbits']
+    sysbits = sysinfo['sysbits']
+    sysname = sysinfo['sysname']
+    sysmem = sysinfo['sysmem']
+    print(jsonInfo)
+
     for key, value in jsonInfo.items():
         if True:
             downlist.append(key)
@@ -73,6 +81,12 @@ def startAria2c(DownLink, savePath, chosenname):
         return False
 
 
+def valiate(number):
+    target = time.time()
+
+
+
+
 def main():
     sysinfo = getSysInfo()
     print("您的系统为：" + sysinfo['sysname'] + "内存大小为: " + str(byte2GB(sysinfo['sysmem']))+"GB")
@@ -91,6 +105,7 @@ def main():
         print('Not Support operations')
 
     # 请求API获取软件库信息
+    print('正在连接【资源库】，获取您电脑可用的软件清单')
     hubInfo = getURLInfo(API_URL)
     # print(hubInfo)
     # print(type(hubInfo))
