@@ -37,6 +37,14 @@ def getFirstNum(strnum):
     return res
 
 
+# 获取用户选中的内容
+def getUserChoose():
+    global listbox
+    # print('click me')
+    # print(listbox.get().split('【')[0])
+    return listbox.get().split('【')[0]
+
+
 # 挑选适合计算机的版本
 def all2suit(jsonInfo):
     suit_list = []
@@ -52,6 +60,29 @@ def all2suit(jsonInfo):
             else:
                 suit_list.append(key)
     return suit_list
+
+# 获得下载链接
+def parseDownloadLink(SHARE_URL, REQUEST_URL, user_agent, cookie, host):
+    headers = {
+        'User-Agent': user_agent,
+        'Cookie': cookie,
+        'Host': host,
+        'Referer': SHARE_URL
+    }
+    data = requests.post(REQUEST_URL, headers=headers)
+    # print(data.content)
+    return json.loads(data.content)
+
+
+
+# 下载选中的软件
+def startDown():
+    target_down = getUserChoose()
+    global sys_soft_list
+    request_url = sys_soft_list[target_down]['DownLink']
+    user_agent = sys_soft_list[target_down]['User-Agent']
+    share_url = sys_soft_list[target_down]['Referer']
+    
 
 
 
@@ -116,7 +147,7 @@ else:
 # 设置下载界面
 down_frame = Frame(root)
 down_frame.pack()
-btn_down = ttk.Button(down_frame, text='下载')
+btn_down = ttk.Button(down_frame, text='下载', command=getUserChoose)
 btn_pause = ttk.Button(down_frame, text='暂停')
 label_down = ttk.Label(down_frame, text='下载进度')
 bar_down = ttk.Progressbar(down_frame, length=100)
