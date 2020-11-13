@@ -10,6 +10,7 @@ requests.packages.urllib3.disable_warnings()
 def download(url, file_path):
     # 第一次请求是为了得到文件总大小
     r1 = requests.get(url, stream=True, verify=False)
+    print(r1.headers)
     total_size = int(r1.headers['Content-Length'])
 
     # 这重要了，先看看本地文件下载了多少

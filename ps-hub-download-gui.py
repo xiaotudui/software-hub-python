@@ -1,9 +1,14 @@
 import json
+import os
 import platform
+import tempfile
+import time
 from tkinter import *
+import tkinter.messagebox
 
 # 主窗口
 from tkinter import ttk
+from urllib.parse import unquote
 
 import requests
 
@@ -61,18 +66,76 @@ def all2suit(jsonInfo):
                 suit_list.append(key)
     return suit_list
 
+
 # 获得下载链接
 def parseDownloadLink(SHARE_URL, REQUEST_URL, user_agent, cookie, host):
+    global root
     headers = {
         'User-Agent': user_agent,
         'Cookie': cookie,
         'Host': host,
         'Referer': SHARE_URL
     }
-    data = requests.post(REQUEST_URL, headers=headers)
-    # print(data.content)
-    return json.loads(data.content)
+    data = None
+    try:
+        data = requests.post(REQUEST_URL, headers=headers)
+    except:
+        pass
+    return data
 
+
+# 下载
+
+def download(url, file_folder, temp_name):
+    global var_down
+    global bar_down
+
+    file_name = temp_name
+    # 第一次请求是为了得到文件总大小
+    r1 = requests.get(url, stream=True, verify=False)
+    total_size = int(r1.headers['Content-Length'])
+
+    headers = r1.headers
+    #
+    if 'Content-Disposition' in headers and headers['Content-Disposition']:
+        disposition_split = headers['Content-Disposition'].split(';')
+        if len(disposition_split) > 1:
+            if disposition_split[1].strip().lower().startswith('filename='):
+                file_name = disposition_split[1].split('=')
+                if len(file_name) > 1:
+                    file_name = unquote(file_name[1])
+
+    file_path = os.path.join(file_folder, file_name)
+    # 这重要了，先看看本地文件下载了多少
+    if os.path.exists(file_path):
+        temp_size = os.path.getsize(file_path)  # 本地已经下载的文件大小
+    else:
+        temp_size = 0
+    # 显示一下下载了多少
+    print(temp_size)
+    print(total_size)
+    # 核心部分，这个是请求下载时，从本地文件已经下载过的后面下载
+    headers = {'Range': 'bytes=%d-' % temp_size}
+    # 重新请求网址，加入新的请求头的
+    r = requests.get(url, stream=True, verify=False, headers=headers)
+
+    # 下面写入文件也要注意，看到"ab"了吗？
+    # "ab"表示追加形式写入文件
+    with open(file_path, "ab") as f:
+        for chunk in r.iter_content(chunk_size=1024*1024*8):
+            startTime = time.time()
+            if chunk:
+                temp_size += len(chunk)
+                f.write(chunk)
+                f.flush()
+
+                ###这是下载实现进度显示####
+                done = int(50 * temp_size / total_size)
+                bar_down['value'] = 100 * temp_size / total_size
+                var_down['value'] = int(len(chunk)/1024/1024/(time.time()-startTime))
+                sys.stdout.write("\r[%s%s] %d%% %dKB/S" % ('█' * done, ' ' * (50 - done), 100 * temp_size / total_size, int(len(chunk)/1024/1024/(time.time()-startTime))))
+                sys.stdout.flush()
+    print()  # 避免上面\r 回车符
 
 
 # 下载选中的软件
@@ -82,6 +145,27 @@ def startDown():
     request_url = sys_soft_list[target_down]['DownLink']
     user_agent = sys_soft_list[target_down]['User-Agent']
     share_url = sys_soft_list[target_down]['Referer']
+    cookie = sys_soft_list[target_down]['Cookie']
+    host = sys_soft_list[target_down]['Host']
+    # print('startDown running')
+    data = None
+    for i in range(5):
+        data = parseDownloadLink(share_url, request_url, user_agent, cookie, host)
+        if data != None:
+            break
+
+    if data == None:
+        tkinter.messagebox.showinfo('提示', '请检查网络连接，重新点击下载按钮')
+    else:
+        tkinter.messagebox.showinfo('提示', '开始下载')
+    # print(data.content)
+    last_down_link = json.loads(data.content)['link']
+    print(last_down_link)
+    print(target_down)
+    temp_fold = tempfile.gettempdir()
+    download(last_down_link, temp_fold, target_down)
+
+
     
 
 
@@ -147,7 +231,7 @@ else:
 # 设置下载界面
 down_frame = Frame(root)
 down_frame.pack()
-btn_down = ttk.Button(down_frame, text='下载', command=getUserChoose)
+btn_down = ttk.Button(down_frame, text='下载', command=startDown)
 btn_pause = ttk.Button(down_frame, text='暂停')
 label_down = ttk.Label(down_frame, text='下载进度')
 bar_down = ttk.Progressbar(down_frame, length=100)
@@ -161,6 +245,9 @@ label_down.grid(row=1, column=0)
 bar_down.grid(row=1, column=1)
 label_speed.grid(row=1, column=2)
 
+currentValue=0
+bar_down["value"]=currentValue
+bar_down["maximum"]=100
 
 # 设置安装界面
 install_frame = Frame(root)
