@@ -2,6 +2,7 @@ import json
 import os
 import platform
 import tempfile
+import threading
 import time
 from tkinter import *
 import tkinter.messagebox
@@ -59,9 +60,9 @@ def all2suit(jsonInfo):
     sys_version = getFirstNum(sys_version)
 
     for key, value in jsonInfo.items():
-        if sys_bit in value['requirements'] and sys_name+sys_version in value['requirements']:
+        if sys_bit in value['requirements'] and sys_name + sys_version in value['requirements']:
             if 'recommend' in value['requirements']:
-                suit_list.insert(0, key+'【推荐】')
+                suit_list.insert(0, key + '【推荐】')
             else:
                 suit_list.append(key)
     return suit_list
@@ -89,7 +90,8 @@ def parseDownloadLink(SHARE_URL, REQUEST_URL, user_agent, cookie, host):
 def download(url, file_folder, temp_name):
     global var_down
     global bar_down
-
+    global label_speed
+    global root
     file_name = temp_name
     # 第一次请求是为了得到文件总大小
     r1 = requests.get(url, stream=True, verify=False)
@@ -122,7 +124,7 @@ def download(url, file_folder, temp_name):
     # 下面写入文件也要注意，看到"ab"了吗？
     # "ab"表示追加形式写入文件
     with open(file_path, "ab") as f:
-        for chunk in r.iter_content(chunk_size=1024*1024*8):
+        for chunk in r.iter_content(chunk_size=1024 * 1024 * 8):
             startTime = time.time()
             if chunk:
                 temp_size += len(chunk)
@@ -132,9 +134,13 @@ def download(url, file_folder, temp_name):
                 ###这是下载实现进度显示####
                 done = int(50 * temp_size / total_size)
                 bar_down['value'] = 100 * temp_size / total_size
-                var_down.set(str(int(len(chunk)/1024/1024/(time.time()-startTime))))
-                sys.stdout.write("\r[%s%s] %d%% %dKB/S" % ('█' * done, ' ' * (50 - done), 100 * temp_size / total_size, int(len(chunk)/1024/1024/(time.time()-startTime))))
+                var_down.set(str(int(len(chunk) / 1024 / 1024 / (time.time() - startTime))))
+                # var_down.set("\r[%s%s] %d%% %dKB/S" % ('█' * done, ' ' * (50 - done), 100 * temp_size / total_size,
+                #                                            int(len(chunk) / 1024 / 1024 / (time.time() - startTime))))
+                sys.stdout.write("\r[%s%s] %d%% %dKB/S" % ('█' * done, ' ' * (50 - done), 100 * temp_size / total_size,
+                                                           int(len(chunk) / 1024 / 1024 / (time.time() - startTime))))
                 sys.stdout.flush()
+                # root.update_idletasks()
     print()  # 避免上面\r 回车符
 
 
@@ -154,20 +160,20 @@ def startDown():
         if data != None:
             break
 
-    if data == None:
-        tkinter.messagebox.showinfo('提示', '请检查网络连接，重新点击下载按钮')
-    else:
-        tkinter.messagebox.showinfo('提示', '开始下载')
+    # if data == None:
+    #     tkinter.messagebox.showinfo('提示', '请检查网络连接，重新点击下载按钮')
+    # else:
+    #     tkinter.messagebox.showinfo('提示', '开始下载')
     # print(data.content)
     last_down_link = json.loads(data.content)['link']
     print(last_down_link)
     print(target_down)
     temp_fold = tempfile.gettempdir()
-    download(last_down_link, temp_fold, target_down)
 
-
-    
-
+    th = threading.Thread(target=download, args=(last_down_link, temp_fold, target_down))
+    th.setDaemon(True)  # 守护线程
+    th.start()
+    # download(last_down_link, temp_fold, target_down)
 
 
 # ----------------main------------------
@@ -176,6 +182,8 @@ root.title('PS/PhotoShop一键安装程序')
 width = 500
 heigth = 400
 root.geometry('{}x{}'.format(width, heigth))
+
+
 
 # 获取系统参数
 sys_bit = platform.architecture()[0]
@@ -188,7 +196,7 @@ else:
 # 选择与系统匹配的API地址
 APIs = {'win': 'http://tuduia.gitee.io/software-hub-api/win-ps.json',
         'mac': 'http://tuduia.gitee.io/software-hub-api/mac-ps.json'}
-APIURL = None
+API_URL = None
 if sys_name == 'win':
     API_URL = APIs['win']
 else:
@@ -227,7 +235,6 @@ else:
     listbox.set(all2suit(sys_soft_list)[0])
     listbox.grid(row=1, column=0)
 
-
 # 设置下载界面
 down_frame = Frame(root)
 down_frame.pack()
@@ -235,6 +242,7 @@ btn_down = ttk.Button(down_frame, text='下载', command=startDown)
 btn_pause = ttk.Button(down_frame, text='暂停')
 label_down = ttk.Label(down_frame, text='下载进度')
 bar_down = ttk.Progressbar(down_frame, length=100)
+# bar_down = ttk.Label(down_fram, )
 var_down = StringVar(down_frame)
 var_down.set('0 KB/s')
 label_speed = ttk.Label(down_frame, textvariable=var_down)
@@ -245,9 +253,9 @@ label_down.grid(row=1, column=0)
 bar_down.grid(row=1, column=1)
 label_speed.grid(row=1, column=2)
 
-currentValue=0
-bar_down["value"]=currentValue
-bar_down["maximum"]=100
+currentValue = 0
+bar_down["value"] = currentValue
+bar_down["maximum"] = 100
 
 # 设置安装界面
 install_frame = Frame(root)
