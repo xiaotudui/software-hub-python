@@ -2,13 +2,12 @@ import datetime
 import json
 import os
 import platform
-import subprocess
 import tempfile
 import threading
 import time
 import tkinter.messagebox
 from tkinter import *
-from tkinter import ttk, simpledialog
+from tkinter import ttk, simpledialog, filedialog
 from urllib.parse import unquote
 
 import requests
@@ -88,6 +87,13 @@ def download(url, file_folder, temp_name):
     #             file_name = disposition_split[1].split('=')
     #             if len(file_name) > 1:
     #                 file_name = unquote(file_name[1])
+    # 默认临时磁盘大小
+    disk = os.statvfs(file_folder)
+    free = disk.f_bavail * disk.f_frsize
+    # 弹出对话框，让用户选择下载位置
+    if free <= total_size+104857600:
+        filedialog.askdirectory()
+
 
     file_path = os.path.join(file_folder, file_name)
     print(file_path)
@@ -156,17 +162,15 @@ def installSoft():
     global file_path
     global sys_name
     global file_name
-
+    print("install")
     if sys_name == 'mac':
+        print(file_name)
+        print(file_path)
         cmd1 = "hdiutil attach \"{}\"".format(file_path)
-        cmd2 = "open \"/Volumes/{}/install.app\"".format(file_name.split('.')[0])
-        ex = subprocess.Popen(cmd1, stdout=subprocess.PIPE, shell=True)
-        out, err = ex.communicate()
-        status = ex.wait()
-        print("cmd in:", cmd1)
-        print("cmd out: ", out.decode())
-        print(cmd2)
-        os.popen(cmd2)
+        cmd2 = "open \"/Volumes/{}/install.app\"".format(file_name)
+        # print(cmd2)
+        # os.popen(cmd1)
+        # os.popen(cmd2)
     else:
         pass
 
